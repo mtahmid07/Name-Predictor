@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔮 Smart Name Guesser</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c14;
+    --surface: #0f1623;
+    --surface2: #141d2e;
+    --border: rgba(100,180,255,0.1);
+    --accent: #00d4ff;
+    --accent2: #ff6b6b;
+    --accent3: #ffd166;
+    --text: #e8f4ff;
+    --muted: #6b8caa;
+    --glow: 0 0 30px rgba(0,212,255,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 800px 600px at 20% 20%, rgba(0,212,255,0.04) 0%, transparent 70%),
+      radial-gradient(ellipse 600px 800px at 80% 80%, rgba(255,107,107,0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .scanlines {
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 460px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .header .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 10px;
+  }
+
+  .header h1 {
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), #fff 60%, var(--accent3));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+  }
+
+  .header p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: var(--glow), 0 40px 80px rgba(0,0,0,0.5);
+  }
+
+  /* Form */
+  .fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .field-full { grid-column: 1 / -1; }
+
+  .field label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .field input,
+  .field select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    outline: none;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+  }
+
+  .field input:focus,
+  .field select:focus {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.05);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+  }
+
+  .field select option {
+    background: #1a2335;
+    color: var(--text);
+  }
+
+  /* Guess button */
+  .btn-guess {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    border: none;
+    border-radius: 12px;
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-guess::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #fff 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .btn-guess:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,212,255,0.35); }
+  .btn-guess:hover::before { opacity: 0.1; }
+  .btn-guess:active { transform: scale(0.98); }
+
+  /* Result area */
+  .result-box {
+    margin-top: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+  }
+  .result-box.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .result-icon { font-size: 28px; flex-shrink: 0; }
+  .result-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .result-name {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+  .result-name.uncertain { color: var(--muted); font-size: 16px; font-weight: 600; }
+
+  /* Feedback */
+  .feedback {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease 0.2s;
+  }
+  .feedback.show { opacity: 1; pointer-events: auto; }
+
+  .btn-correct, .btn-wrong {
+    padding: 11px;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-correct {
+    background: rgba(0,212,100,0.1);
+    border: 1px solid rgba(0,212,100,0.3);
+    color: #00d464;
+  }
+  .btn-correct:hover { background: rgba(0,212,100,0.2); transform: translateY(-1px); }
+
+  .btn-wrong {
+    background: rgba(255,107,107,0.1);
+    border: 1px solid rgba(255,107,107,0.3);
+    color: var(--accent2);
+  }
+  .btn-wrong:hover { background: rgba(255,107,107,0.2); transform: translateY(-1px); }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+  .stat {
+    text-align: center;
+    flex: 1;
+  }
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--accent);
+  }
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .stat + .stat { border-left: 1px solid var(--border); }
+
+  /* === MODAL SYSTEM === */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 32px;
+    max-width: 360px;
+    width: 100%;
+    text-align: center;
+    transform: scale(0.85) translateY(20px);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 40px 80px rgba(0,0,0,0.7), var(--glow);
+  }
+  .overlay.show .modal { transform: scale(1) translateY(0); }
+
+  .modal-emoji { font-size: 52px; margin-bottom: 16px; }
+  .modal-title {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+  .modal-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 24px;
+    line-height: 1.6;
+  }
+
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .modal-btn-yes {
+    background: rgba(255,107,107,0.15);
+    border: 1px solid rgba(255,107,107,0.4);
+    color: var(--accent2);
+  }
+  .modal-btn-yes:hover { background: rgba(255,107,107,0.25); }
+  .modal-btn-no {
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    color: var(--accent);
+  }
+  .modal-btn-no:hover { background: rgba(0,212,255,0.2); }
+
+  /* Input modal */
+  .modal-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    outline: none;
+    margin-bottom: 14px;
+    text-align: center;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+  }
+  .modal-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+  }
+  .modal-input::placeholder { color: var(--muted); letter-spacing: 1px; }
+
+  .modal-btn-submit {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    border: none;
+    border-radius: 10px;
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .modal-btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,212,255,0.3); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 12px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    z-index: 2000;
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Pulse animation for correct */
+  @keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(0,212,100,0.4); }
+    70% { box-shadow: 0 0 0 12px rgba(0,212,100,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,212,100,0); }
+  }
+  .pulse-correct { animation: pulse-green 0.6s ease-out; }
+
+  /* Confidence bar */
+  .confidence-wrap {
+    margin-top: 8px;
+  }
+  .confidence-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .confidence-bar {
+    height: 3px;
+    background: var(--surface2);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .confidence-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    border-radius: 100px;
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    width: 0%;
+  }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+
+<div class="wrapper">
+  <div class="header">
+    <div class="tag">// neural name engine v2.0</div>
+    <h1>Smart Name<br>Guesser</h1>
+    <p>Give hints → I'll guess → I'll learn from my mistakes</p>
+  </div>
+
+  <div class="card">
+    <div class="fields">
+      <div class="field">
+        <label>First Letter</label>
+        <input type="text" id="letter" maxlength="1" placeholder="A">
+      </div>
+      <div class="field">
+        <label>Name Length</label>
+        <input type="number" id="length" min="2" max="20" placeholder="6">
+      </div>
+      <div class="field">
+        <label>Region</label>
+        <select id="region">
+          <option value="">Any</option>
+          <option value="bangladeshi">Bangladeshi</option>
+          <option value="western">Western</option>
+          <option value="arabic">Arabic</option>
+          <option value="indian">Indian</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Gender</label>
+        <select id="gender">
+          <option value="">Any</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+      </div>
+      <div class="field field-full">
+        <label>Ends with vowel?</label>
+        <select id="endsWithVowel">
+          <option value="">Don't know</option>
+          <option value="true">Yes (a, e, i, o, u)</option>
+          <option value="false">No (consonant)</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-guess" onclick="guessName()">🔮 Guess the Name</button>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-icon" id="resultIcon">🤖</div>
+      <div style="flex:1; min-width:0;">
+        <div class="result-label">My best guess</div>
+        <div class="result-name" id="resultName">—</div>
+        <div class="confidence-wrap" id="confWrap" style="display:none;">
+          <div class="confidence-label">
+            <span>Confidence</span>
+            <span id="confPct">0%</span>
+          </div>
+          <div class="confidence-bar"><div class="confidence-fill" id="confFill"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feedback" id="feedback">
+      <button class="btn-correct" onclick="handleCorrect()">👍 That's right!</button>
+      <button class="btn-wrong" onclick="handleWrong()">👎 That's wrong!</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">Names Known</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statCorrect">0</div>
+        <div class="stat-label">Correct</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statLearned">0</div>
+        <div class="stat-label">Learned</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Lying check -->
+<div class="overlay" id="overlayLie">
+  <div class="modal">
+    <div class="modal-emoji">😏</div>
+    <div class="modal-title">Hold on...</div>
+    <div class="modal-sub">You might be LYING to me!<br>Are you? 👀</div>
+    <div class="modal-btns">
+      <button class="modal-btn modal-btn-yes" onclick="userAdmitsLying()">😅 Yeah okay...</button>
+      <button class="modal-btn modal-btn-no" onclick="userDeniesLying()">😤 No I'm not!</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Gotcha (admitted lying) -->
+<div class="overlay" id="overlayGotcha">
+  <div class="modal">
+    <div class="modal-emoji">🎉</div>
+    <div class="modal-title">GOTCHA!!!</div>
+    <div class="modal-sub">Haha! Caught you red-handed! 🤣<br>Alright, what WAS the real name?</div>
+    <input class="modal-input" id="inputGotcha" type="text" placeholder="Type the real name...">
+    <button class="modal-btn-submit" onclick="submitCorrectName('gotcha')">💾 Save & Teach Me</button>
+  </div>
+</div>
+
+<!-- Modal: Deny lying (trust issues) -->
+<div class="overlay" id="overlayDeny">
+  <div class="modal">
+    <div class="modal-emoji">🤨</div>
+    <div class="modal-title">Why would I trust you?</div>
+    <div class="modal-sub">Fine, fine... I'll give you the<br>benefit of the doubt. Tell me<br>the correct name then.</div>
+    <input class="modal-input" id="inputDeny" type="text" placeholder="Type the correct name...">
+    <button class="modal-btn-submit" onclick="submitCorrectName('deny')">💾 Okay I'll Learn It</button>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// DATA STORE
+// ============================================================
+const DB_KEY = "nameGuesserDB_v2";
+const STATS_KEY = "nameGuesserStats_v2";
+
+const DEFAULT_NAMES = [
+  { name:"Rahim", region:"bangladeshi", gender:"male", length:5, endsWithVowel:false, hits:0 },
+  { name:"Ayesha", region:"bangladeshi", gender:"female", length:6, endsWithVowel:true, hits:0 },
+  { name:"Karim", region:"bangladeshi", gender:"male", length:5, endsWithVowel:false, hits:0 },
+  { name:"Fatima", region:"bangladeshi", gender:"female", length:6, endsWithVowel:true, hits:0 },
+  { name:"Hasan", region:"bangladeshi", gender:"male", length:5, endsWithVowel:false, hits:0 },
+  { name:"Nadia", region:"bangladeshi", gender:"female", length:5, endsWithVowel:true, hits:0 },
+  { name:"Arif", region:"bangladeshi", gender:"male", length:4, endsWithVowel:false, hits:0 },
+  { name:"Riya", region:"bangladeshi", gender:"female", length:4, endsWithVowel:true, hits:0 },
+  { name:"James", region:"western", gender:"male", length:5, endsWithVowel:false, hits:0 },
+  { name:"Emma", region:"western", gender:"female", length:4, endsWithVowel:true, hits:0 },
+  { name:"Oliver", region:"western", gender:"male", length:6, endsWithVowel:false, hits:0 },
+  { name:"Sophia", region:"western", gender:"female", length:6, endsWithVowel:true, hits:0 },
+  { name:"Liam", region:"western", gender:"male", length:4, endsWithVowel:false, hits:0 },
+  { name:"Ava", region:"western", gender:"female", length:3, endsWithVowel:true, hits:0 },
+  { name:"Ahmed", region:"arabic", gender:"male", length:5, endsWithVowel:false, hits:0 },
+  { name:"Fatimah", region:"arabic", gender:"female", length:7, endsWithVowel:false, hits:0 },
+  { name:"Omar", region:"arabic", gender:"male", length:4, endsWithVowel:false, hits:0 },
+  { name:"Zainab", region:"arabic", gender:"female", length:6, endsWithVowel:false, hits:0 },
+  { name:"Ali", region:"arabic", gender:"male", length:3, endsWithVowel:true, hits:0 },
+  { name:"Mariam", region:"arabic", gender:"female", length:6, endsWithVowel:false, hits:0 },
+  { name:"Arjun", region:"indian", gender:"male", length:5, endsWithVowel:false, hits:0 },
+  { name:"Priya", region:"indian", gender:"female", length:5, endsWithVowel:true, hits:0 },
+  { name:"Rahul", region:"indian", gender:"male", length:5, endsWithVowel:false, hits:0 },
+  { name:"Ananya", region:"indian", gender:"female", length:6, endsWithVowel:true, hits:0 },
+];
+
+let names = JSON.parse(localStorage.getItem(DB_KEY)) || DEFAULT_NAMES;
+let stats = JSON.parse(localStorage.getItem(STATS_KEY)) || { correct: 0, learned: 0 };
+
+let lastInputs = {};
+let lastGuess = "";
+let currentConfidence = 0;
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function isVowel(c) { return "aeiouAEIOU".includes(c); }
+function saveNames() { localStorage.setItem(DB_KEY, JSON.stringify(names)); }
+function saveStats() { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); }
+
+function updateStats() {
+  document.getElementById("statTotal").textContent = names.length;
+  document.getElementById("statCorrect").textContent = stats.correct;
+  document.getElementById("statLearned").textContent = stats.learned;
+}
+
+function showToast(msg, duration = 2800) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), duration);
+}
+
+function openModal(id) {
+  closeAllModals();
+  document.getElementById(id).classList.add("show");
+}
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
+function closeAllModals() {
+  ["overlayLie", "overlayGotcha", "overlayDeny"].forEach(id => closeModal(id));
+}
+
+// Close modal on overlay click
+document.querySelectorAll(".overlay").forEach(el => {
+  el.addEventListener("click", e => { if(e.target === el) closeAllModals(); });
+});
+
+// ============================================================
+// SCORING ENGINE
+// ============================================================
+function scoreEntry(n, inputs) {
+  let score = 0;
+  let maxScore = 0;
+
+  if (inputs.letter) {
+    maxScore += 8;
+    if (n.name.toLowerCase().startsWith(inputs.letter.toLowerCase())) score += 8;
+  }
+  if (inputs.region) {
+    maxScore += 5;
+    if (n.region === inputs.region) score += 5;
+  }
+  if (inputs.gender) {
+    maxScore += 5;
+    if (n.gender === inputs.gender) score += 5;
+  }
+  if (inputs.length) {
+    maxScore += 4;
+    const diff = Math.abs(n.length - parseInt(inputs.length));
+    if (diff === 0) score += 4;
+    else if (diff === 1) score += 2;
+    else if (diff === 2) score += 1;
+  }
+  if (inputs.endsWithVowel !== "") {
+    maxScore += 3;
+    const val = inputs.endsWithVowel === "true";
+    if (n.endsWithVowel === val) score += 3;
+  }
+
+  // Boost by past hits (learns over time)
+  score += Math.min(n.hits * 0.5, 3);
+  maxScore += 3;
+
+  return { score, maxScore };
+}
+
+// ============================================================
+// MAIN GUESS FUNCTION
+// ============================================================
+function guessName() {
+  const inputs = {
+    letter: document.getElementById("letter").value.trim().toLowerCase(),
+    region: document.getElementById("region").value,
+    gender: document.getElementById("gender").value,
+    length: document.getElementById("length").value.trim(),
+    endsWithVowel: document.getElementById("endsWithVowel").value
+  };
+  lastInputs = inputs;
+
+  // Score all names
+  const hasAnyInput = inputs.letter || inputs.region || inputs.gender || inputs.length || inputs.endsWithVowel !== "";
+
+  let scored = names.map(n => {
+    const { score, maxScore } = scoreEntry(n, inputs);
+    return { ...n, score, maxScore };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  const resultBox = document.getElementById("resultBox");
+  const resultName = document.getElementById("resultName");
+  const resultIcon = document.getElementById("resultIcon");
+  const feedback = document.getElementById("feedback");
+  const confWrap = document.getElementById("confWrap");
+
+  resultBox.classList.remove("show");
+  feedback.classList.remove("show");
+
+  setTimeout(() => {
+    if (!hasAnyInput || scored.length === 0 || scored[0].score === 0) {
+      lastGuess = "";
+      resultIcon.textContent = "🤔";
+      resultName.textContent = "Give me some hints!";
+      resultName.className = "result-name uncertain";
+      confWrap.style.display = "none";
+      feedback.classList.remove("show");
+    } else {
+      const best = scored[0];
+      lastGuess = best.name;
+
+      // Calculate confidence %
+      const pct = best.maxScore > 0 ? Math.round((best.score / best.maxScore) * 100) : 0;
+      currentConfidence = pct;
+
+      resultIcon.textContent = pct >= 80 ? "🎯" : pct >= 50 ? "🤖" : "🤷";
+      resultName.textContent = best.name;
+      resultName.className = "result-name";
+
+      // Confidence bar
+      confWrap.style.display = "block";
+      document.getElementById("confPct").textContent = pct + "%";
+      setTimeout(() => {
+        document.getElementById("confFill").style.width = pct + "%";
+      }, 50);
+
+      feedback.classList.add("show");
+    }
+    resultBox.classList.add("show");
+  }, 200);
+
+  updateStats();
+}
+
+// ============================================================
+// FEEDBACK: CORRECT
+// ============================================================
+function handleCorrect() {
+  if (!lastGuess) return;
+
+  // Increment hits for the correct name
+  const idx = names.findIndex(n => n.name === lastGuess);
+  if (idx !== -1) {
+    names[idx].hits = (names[idx].hits || 0) + 1;
+    saveNames();
+  }
+
+  stats.correct++;
+  saveStats();
+  updateStats();
+
+  // Visual feedback
+  const resultBox = document.getElementById("resultBox");
+  resultBox.classList.add("pulse-correct");
+  setTimeout(() => resultBox.classList.remove("pulse-correct"), 700);
+
+  showToast("😎 Nice! I'm getting smarter about " + lastGuess + "!");
+  document.getElementById("feedback").classList.remove("show");
+}
+
+// ============================================================
+// FEEDBACK: WRONG → lying modal
+// ============================================================
+function handleWrong() {
+  if (!lastGuess) {
+    showToast("🤷 I didn't even guess anything yet!");
+    return;
+  }
+  openModal("overlayLie");
+}
+
+function userAdmitsLying() {
+  closeModal("overlayLie");
+  setTimeout(() => {
+    document.getElementById("inputGotcha").value = "";
+    openModal("overlayGotcha");
+    setTimeout(() => document.getElementById("inputGotcha").focus(), 350);
+  }, 200);
+}
+
+function userDeniesLying() {
+  closeModal("overlayLie");
+  setTimeout(() => {
+    document.getElementById("inputDeny").value = "";
+    openModal("overlayDeny");
+    setTimeout(() => document.getElementById("inputDeny").focus(), 350);
+  }, 200);
+}
+
+// Enter key support for modal inputs
+document.getElementById("inputGotcha").addEventListener("keydown", e => {
+  if (e.key === "Enter") submitCorrectName("gotcha");
+});
+document.getElementById("inputDeny").addEventListener("keydown", e => {
+  if (e.key === "Enter") submitCorrectName("deny");
+});
+
+// ============================================================
+// SAVE CORRECT NAME
+// ============================================================
+function submitCorrectName(source) {
+  const inputEl = document.getElementById(source === "gotcha" ? "inputGotcha" : "inputDeny");
+  const correctName = inputEl.value.trim();
+
+  if (!correctName) {
+    inputEl.style.borderColor = "var(--accent2)";
+    setTimeout(() => inputEl.style.borderColor = "", 600);
+    return;
+  }
+
+  saveName(correctName);
+  closeAllModals();
+
+  if (source === "gotcha") {
+    showToast("🎉 GOTCHA! Learned '" + correctName + "' to humiliate you next time 😏");
+  } else {
+    showToast("🧠 Fine, I trust you... '" + correctName + "' has been saved.");
+  }
+}
+
+function saveName(correctName) {
+  correctName = correctName.trim();
+  if (!correctName) return;
+
+  // Check if name already exists
+  const exists = names.findIndex(n => n.name.toLowerCase() === correctName.toLowerCase());
+
+  if (exists !== -1) {
+    // Update existing — boost hits
+    names[exists].hits = (names[exists].hits || 0) + 2;
+    // Update with latest hints if they're more specific
+    if (lastInputs.region) names[exists].region = lastInputs.region;
+    if (lastInputs.gender) names[exists].gender = lastInputs.gender;
+    saveNames();
+    showToast("📚 I already know '" + correctName + "' — reinforced!");
+  } else {
+    const newEntry = {
+      name: correctName,
+      region: lastInputs.region || "unknown",
+      gender: lastInputs.gender || "unknown",
+      length: correctName.length,
+      endsWithVowel: isVowel(correctName.slice(-1)),
+      hits: 1
+    };
+    names.push(newEntry);
+    saveNames();
+    stats.learned++;
+    saveStats();
+  }
+
+  updateStats();
+
+  // Update result display
+  const resultName = document.getElementById("resultName");
+  const resultBox = document.getElementById("resultBox");
+  const resultIcon = document.getElementById("resultIcon");
+  document.getElementById("confWrap").style.display = "none";
+  resultIcon.textContent = "🧠";
+  resultName.textContent = "Learned: " + correctName;
+  resultName.className = "result-name";
+  document.getElementById("feedback").classList.remove("show");
+  resultBox.classList.add("show");
+
+  lastGuess = "";
+}
+
+// ============================================================
+// INIT
+// ============================================================
+updateStats();
+</script>
+</body>
+</html>
